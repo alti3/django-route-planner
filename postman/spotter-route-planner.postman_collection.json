@@ -1,0 +1,766 @@
+{
+  "info": {
+    "_postman_id": "eb1379aa-8642-4ce3-b95d-4e92477203ef",
+    "name": "Spotter Fuel Route Planner API",
+    "description": "Comprehensive Postman collection for the Django 6.0 Fuel Route Planner API.\n\nBase URL variable: {{baseUrl}}\nDefault: http://127.0.0.1:8000\n\nEndpoints:\n- GET /api/v1/health\n- POST /api/v1/route-plan\n\nThis collection includes:\n- Request headers\n- Request body examples\n- Success and failure response examples\n- Notes for reproducing edge/failure cases\n\nCommon response content type: application/json",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+  },
+  "variable": [
+    {
+      "key": "baseUrl",
+      "value": "http://127.0.0.1:8000",
+      "type": "string"
+    }
+  ],
+  "item": [
+    {
+      "name": "Health",
+      "description": "Service health and station inventory coverage.",
+      "item": [
+        {
+          "name": "GET /api/v1/health - Success",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json",
+                "type": "text"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/health",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "health"
+              ]
+            },
+            "description": "Returns service status and fuel station counts.\n\nExpected status: 200"
+          },
+          "response": [
+            {
+              "name": "200 Success",
+              "originalRequest": {
+                "method": "GET",
+                "header": [
+                  {
+                    "key": "Accept",
+                    "value": "application/json"
+                  }
+                ],
+                "url": {
+                  "raw": "{{baseUrl}}/api/v1/health",
+                  "host": [
+                    "{{baseUrl}}"
+                  ],
+                  "path": [
+                    "api",
+                    "v1",
+                    "health"
+                  ]
+                }
+              },
+              "status": "OK",
+              "code": 200,
+              "_postman_previewlanguage": "json",
+              "header": [
+                {
+                  "key": "Content-Type",
+                  "value": "application/json"
+                }
+              ],
+              "cookie": [],
+              "body": "{\n  \"status\": \"ok\",\n  \"stations\": {\n    \"total\": 6350,\n    \"geocoded\": 1200\n  }\n}"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "Route Plan - Success",
+      "description": "Successful route planning with baseline and OR-Tools optimizer modes.",
+      "item": [
+        {
+          "name": "POST /api/v1/route-plan - Success (Baseline)",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json",
+                "type": "text"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json",
+                "type": "text"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"start_location\": \"Austin, TX\",\n  \"finish_location\": \"Houston, TX\",\n  \"start_fuel_percent\": 100,\n  \"corridor_miles\": 8,\n  \"optimizer\": \"baseline\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/route-plan",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "route-plan"
+              ]
+            },
+            "description": "Computes route + fuel stops with baseline optimizer.\n\nExpected status: 200\n\nBody fields:\n- start_location (string, required)\n- finish_location (string, required)\n- start_fuel_percent (number, optional, 0..100, default 100)\n- corridor_miles (number, optional, 1..50, default 8)\n- optimizer (string, optional: baseline|ortools, default baseline)"
+          },
+          "response": [
+            {
+              "name": "200 Success - Baseline",
+              "originalRequest": {
+                "method": "POST",
+                "header": [
+                  {
+                    "key": "Accept",
+                    "value": "application/json"
+                  },
+                  {
+                    "key": "Content-Type",
+                    "value": "application/json"
+                  }
+                ],
+                "url": {
+                  "raw": "{{baseUrl}}/api/v1/route-plan",
+                  "host": [
+                    "{{baseUrl}}"
+                  ],
+                  "path": [
+                    "api",
+                    "v1",
+                    "route-plan"
+                  ]
+                },
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n  \"start_location\": \"Austin, TX\",\n  \"finish_location\": \"Houston, TX\",\n  \"start_fuel_percent\": 100,\n  \"corridor_miles\": 8,\n  \"optimizer\": \"baseline\"\n}"
+                }
+              },
+              "status": "OK",
+              "code": 200,
+              "_postman_previewlanguage": "json",
+              "header": [
+                {
+                  "key": "Content-Type",
+                  "value": "application/json"
+                }
+              ],
+              "cookie": [],
+              "body": "{\n  \"start\": {\n    \"latitude\": 30.2672,\n    \"longitude\": -97.7431\n  },\n  \"finish\": {\n    \"latitude\": 29.7604,\n    \"longitude\": -95.3698\n  },\n  \"optimizer_used\": \"baseline\",\n  \"route_geojson\": {\n    \"type\": \"LineString\",\n    \"coordinates\": [[-97.7431, 30.2672], [-95.3698, 29.7604]]\n  },\n  \"stops\": [\n    {\n      \"station_id\": 101,\n      \"station_name\": \"Sample Truck Stop\",\n      \"address\": \"100 Main St\",\n      \"city\": \"Columbus\",\n      \"state\": \"TX\",\n      \"latitude\": 29.702,\n      \"longitude\": -96.543,\n      \"milepost\": 92.31,\n      \"distance_from_route_miles\": 0.8,\n      \"price_per_gallon\": 3.199,\n      \"gallons_purchased\": 5.2,\n      \"cost\": 16.63,\n      \"fuel_before_gallons\": 6.1,\n      \"fuel_after_gallons\": 11.3\n    }\n  ],\n  \"summary\": {\n    \"distance_miles\": 165.2,\n    \"duration_minutes\": 164.5,\n    \"total_gallons_purchased\": 5.2,\n    \"total_fuel_cost\": 16.63,\n    \"estimated_fuel_needed_gallons\": 16.52\n  },\n  \"assumptions\": {\n    \"vehicle_mpg\": 10.0,\n    \"max_range_miles\": 500.0,\n    \"tank_capacity_gallons\": 50.0,\n    \"corridor_miles\": 8.0\n  }\n}"
+            }
+          ]
+        },
+        {
+          "name": "POST /api/v1/route-plan - Success (OR-Tools)",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json",
+                "type": "text"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json",
+                "type": "text"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"start_location\": \"Dallas, TX\",\n  \"finish_location\": \"Nashville, TN\",\n  \"start_fuel_percent\": 60,\n  \"corridor_miles\": 10,\n  \"optimizer\": \"ortools\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/route-plan",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "route-plan"
+              ]
+            },
+            "description": "Computes route + fuel stops with OR-Tools optimizer.\n\nExpected status: 200\n\nNote: If OR-Tools cannot solve/initialize, service may fallback to baseline and return optimizer_used=baseline."
+          },
+          "response": [
+            {
+              "name": "200 Success - OR-Tools",
+              "originalRequest": {
+                "method": "POST",
+                "header": [
+                  {
+                    "key": "Accept",
+                    "value": "application/json"
+                  },
+                  {
+                    "key": "Content-Type",
+                    "value": "application/json"
+                  }
+                ],
+                "url": {
+                  "raw": "{{baseUrl}}/api/v1/route-plan",
+                  "host": [
+                    "{{baseUrl}}"
+                  ],
+                  "path": [
+                    "api",
+                    "v1",
+                    "route-plan"
+                  ]
+                },
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n  \"start_location\": \"Dallas, TX\",\n  \"finish_location\": \"Nashville, TN\",\n  \"start_fuel_percent\": 60,\n  \"corridor_miles\": 10,\n  \"optimizer\": \"ortools\"\n}"
+                }
+              },
+              "status": "OK",
+              "code": 200,
+              "_postman_previewlanguage": "json",
+              "header": [
+                {
+                  "key": "Content-Type",
+                  "value": "application/json"
+                }
+              ],
+              "cookie": [],
+              "body": "{\n  \"start\": {\n    \"latitude\": 32.7763,\n    \"longitude\": -96.7969\n  },\n  \"finish\": {\n    \"latitude\": 36.1627,\n    \"longitude\": -86.7816\n  },\n  \"optimizer_used\": \"ortools\",\n  \"route_geojson\": {\n    \"type\": \"LineString\",\n    \"coordinates\": [[-96.7969, 32.7763], [-86.7816, 36.1627]]\n  },\n  \"stops\": [],\n  \"summary\": {\n    \"distance_miles\": 665.1,\n    \"duration_minutes\": 620.0,\n    \"total_gallons_purchased\": 38.3,\n    \"total_fuel_cost\": 123.75,\n    \"estimated_fuel_needed_gallons\": 66.51\n  },\n  \"assumptions\": {\n    \"vehicle_mpg\": 10.0,\n    \"max_range_miles\": 500.0,\n    \"tank_capacity_gallons\": 50.0,\n    \"corridor_miles\": 10.0\n  }\n}"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "Route Plan - Client Errors",
+      "description": "Invalid request and validation failures.",
+      "item": [
+        {
+          "name": "POST /api/v1/route-plan - 400 validation_error (Missing Field)",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json",
+                "type": "text"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json",
+                "type": "text"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"start_location\": \"Austin, TX\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/route-plan",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "route-plan"
+              ]
+            },
+            "description": "Missing required finish_location.\n\nExpected status: 400"
+          },
+          "response": [
+            {
+              "name": "400 validation_error",
+              "originalRequest": {
+                "method": "POST",
+                "header": [
+                  {
+                    "key": "Accept",
+                    "value": "application/json"
+                  },
+                  {
+                    "key": "Content-Type",
+                    "value": "application/json"
+                  }
+                ],
+                "url": {
+                  "raw": "{{baseUrl}}/api/v1/route-plan",
+                  "host": [
+                    "{{baseUrl}}"
+                  ],
+                  "path": [
+                    "api",
+                    "v1",
+                    "route-plan"
+                  ]
+                },
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n  \"start_location\": \"Austin, TX\"\n}"
+                }
+              },
+              "status": "Bad Request",
+              "code": 400,
+              "_postman_previewlanguage": "json",
+              "header": [
+                {
+                  "key": "Content-Type",
+                  "value": "application/json"
+                }
+              ],
+              "cookie": [],
+              "body": "{\n  \"error\": {\n    \"code\": \"validation_error\",\n    \"message\": \"Invalid request payload\",\n    \"details\": [\n      {\n        \"type\": \"missing\",\n        \"loc\": [\"finish_location\"],\n        \"msg\": \"Field required\"\n      }\n    ]\n  }\n}"
+            }
+          ]
+        },
+        {
+          "name": "POST /api/v1/route-plan - 400 invalid_json (Malformed)",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json",
+                "type": "text"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json",
+                "type": "text"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"start_location\": \"Austin, TX\",\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/route-plan",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "route-plan"
+              ]
+            },
+            "description": "Malformed JSON payload.\n\nExpected status: 400"
+          },
+          "response": [
+            {
+              "name": "400 invalid_json",
+              "originalRequest": {
+                "method": "POST",
+                "header": [
+                  {
+                    "key": "Accept",
+                    "value": "application/json"
+                  },
+                  {
+                    "key": "Content-Type",
+                    "value": "application/json"
+                  }
+                ],
+                "url": {
+                  "raw": "{{baseUrl}}/api/v1/route-plan",
+                  "host": [
+                    "{{baseUrl}}"
+                  ],
+                  "path": [
+                    "api",
+                    "v1",
+                    "route-plan"
+                  ]
+                },
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n  \"start_location\": \"Austin, TX\",\n}"
+                }
+              },
+              "status": "Bad Request",
+              "code": 400,
+              "_postman_previewlanguage": "json",
+              "header": [
+                {
+                  "key": "Content-Type",
+                  "value": "application/json"
+                }
+              ],
+              "cookie": [],
+              "body": "{\n  \"error\": {\n    \"code\": \"invalid_json\",\n    \"message\": \"Request body must be valid JSON\"\n  }\n}"
+            }
+          ]
+        },
+        {
+          "name": "POST /api/v1/route-plan - 400 invalid_location (Outside USA)",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json",
+                "type": "text"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json",
+                "type": "text"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"start_location\": \"Toronto, ON\",\n  \"finish_location\": \"Chicago, IL\",\n  \"start_fuel_percent\": 100,\n  \"corridor_miles\": 8,\n  \"optimizer\": \"baseline\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/route-plan",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "route-plan"
+              ]
+            },
+            "description": "Start or finish location outside the USA.\n\nExpected status: 400"
+          },
+          "response": [
+            {
+              "name": "400 invalid_location",
+              "originalRequest": {
+                "method": "POST",
+                "header": [
+                  {
+                    "key": "Accept",
+                    "value": "application/json"
+                  },
+                  {
+                    "key": "Content-Type",
+                    "value": "application/json"
+                  }
+                ],
+                "url": {
+                  "raw": "{{baseUrl}}/api/v1/route-plan",
+                  "host": [
+                    "{{baseUrl}}"
+                  ],
+                  "path": [
+                    "api",
+                    "v1",
+                    "route-plan"
+                  ]
+                },
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n  \"start_location\": \"Toronto, ON\",\n  \"finish_location\": \"Chicago, IL\",\n  \"start_fuel_percent\": 100,\n  \"corridor_miles\": 8,\n  \"optimizer\": \"baseline\"\n}"
+                }
+              },
+              "status": "Bad Request",
+              "code": 400,
+              "_postman_previewlanguage": "json",
+              "header": [
+                {
+                  "key": "Content-Type",
+                  "value": "application/json"
+                }
+              ],
+              "cookie": [],
+              "body": "{\n  \"error\": {\n    \"code\": \"invalid_location\",\n    \"message\": \"Location must be within the USA\"\n  }\n}"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "Route Plan - Domain and Upstream Errors",
+      "description": "No-feasible-plan and upstream routing/geocoding failures.",
+      "item": [
+        {
+          "name": "POST /api/v1/route-plan - 422 no_feasible_plan",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json",
+                "type": "text"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json",
+                "type": "text"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"start_location\": \"El Paso, TX\",\n  \"finish_location\": \"Anchorage, AK\",\n  \"start_fuel_percent\": 1,\n  \"corridor_miles\": 1,\n  \"optimizer\": \"baseline\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/route-plan",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "route-plan"
+              ]
+            },
+            "description": "Expected when route is valid but fuel constraints + candidate stations make traversal infeasible.\n\nExpected status: 422"
+          },
+          "response": [
+            {
+              "name": "422 no_feasible_plan",
+              "originalRequest": {
+                "method": "POST",
+                "header": [
+                  {
+                    "key": "Accept",
+                    "value": "application/json"
+                  },
+                  {
+                    "key": "Content-Type",
+                    "value": "application/json"
+                  }
+                ],
+                "url": {
+                  "raw": "{{baseUrl}}/api/v1/route-plan",
+                  "host": [
+                    "{{baseUrl}}"
+                  ],
+                  "path": [
+                    "api",
+                    "v1",
+                    "route-plan"
+                  ]
+                },
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n  \"start_location\": \"El Paso, TX\",\n  \"finish_location\": \"Anchorage, AK\",\n  \"start_fuel_percent\": 1,\n  \"corridor_miles\": 1,\n  \"optimizer\": \"baseline\"\n}"
+                }
+              },
+              "status": "Unprocessable Entity",
+              "code": 422,
+              "_postman_previewlanguage": "json",
+              "header": [
+                {
+                  "key": "Content-Type",
+                  "value": "application/json"
+                }
+              ],
+              "cookie": [],
+              "body": "{\n  \"error\": {\n    \"code\": \"no_feasible_plan\",\n    \"message\": \"Cannot reach destination with available stations and constraints\"\n  }\n}"
+            }
+          ]
+        },
+        {
+          "name": "POST /api/v1/route-plan - 502 no_route",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json",
+                "type": "text"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json",
+                "type": "text"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"start_location\": \"Honolulu, HI\",\n  \"finish_location\": \"Los Angeles, CA\",\n  \"start_fuel_percent\": 100,\n  \"corridor_miles\": 8,\n  \"optimizer\": \"baseline\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/route-plan",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "route-plan"
+              ]
+            },
+            "description": "Expected when OSRM cannot produce a drivable route between points.\n\nExpected status: 502"
+          },
+          "response": [
+            {
+              "name": "502 no_route",
+              "originalRequest": {
+                "method": "POST",
+                "header": [
+                  {
+                    "key": "Accept",
+                    "value": "application/json"
+                  },
+                  {
+                    "key": "Content-Type",
+                    "value": "application/json"
+                  }
+                ],
+                "url": {
+                  "raw": "{{baseUrl}}/api/v1/route-plan",
+                  "host": [
+                    "{{baseUrl}}"
+                  ],
+                  "path": [
+                    "api",
+                    "v1",
+                    "route-plan"
+                  ]
+                },
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n  \"start_location\": \"Honolulu, HI\",\n  \"finish_location\": \"Los Angeles, CA\",\n  \"start_fuel_percent\": 100,\n  \"corridor_miles\": 8,\n  \"optimizer\": \"baseline\"\n}"
+                }
+              },
+              "status": "Bad Gateway",
+              "code": 502,
+              "_postman_previewlanguage": "json",
+              "header": [
+                {
+                  "key": "Content-Type",
+                  "value": "application/json"
+                }
+              ],
+              "cookie": [],
+              "body": "{\n  \"error\": {\n    \"code\": \"no_route\",\n    \"message\": \"Could not compute route\"\n  }\n}"
+            }
+          ]
+        },
+        {
+          "name": "POST /api/v1/route-plan - 502 upstream_error",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json",
+                "type": "text"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json",
+                "type": "text"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"start_location\": \"Austin, TX\",\n  \"finish_location\": \"Houston, TX\",\n  \"start_fuel_percent\": 100,\n  \"corridor_miles\": 8,\n  \"optimizer\": \"baseline\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/route-plan",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "route-plan"
+              ]
+            },
+            "description": "Expected when upstream geocoding or routing API call fails (timeouts/network/downstream outages).\n\nRepro hint: point OSRM_BASE_URL or GEOCODING_BASE_URL to an invalid host before starting Django.\n\nExpected status: 502"
+          },
+          "response": [
+            {
+              "name": "502 upstream_error",
+              "originalRequest": {
+                "method": "POST",
+                "header": [
+                  {
+                    "key": "Accept",
+                    "value": "application/json"
+                  },
+                  {
+                    "key": "Content-Type",
+                    "value": "application/json"
+                  }
+                ],
+                "url": {
+                  "raw": "{{baseUrl}}/api/v1/route-plan",
+                  "host": [
+                    "{{baseUrl}}"
+                  ],
+                  "path": [
+                    "api",
+                    "v1",
+                    "route-plan"
+                  ]
+                },
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n  \"start_location\": \"Austin, TX\",\n  \"finish_location\": \"Houston, TX\",\n  \"start_fuel_percent\": 100,\n  \"corridor_miles\": 8,\n  \"optimizer\": \"baseline\"\n}"
+                }
+              },
+              "status": "Bad Gateway",
+              "code": 502,
+              "_postman_previewlanguage": "json",
+              "header": [
+                {
+                  "key": "Content-Type",
+                  "value": "application/json"
+                }
+              ],
+              "cookie": [],
+              "body": "{\n  \"error\": {\n    \"code\": \"upstream_error\",\n    \"message\": \"OSRM request failed\"\n  }\n}"
+            }
+          ]
+        }
+      ]
+    }
+  ]
+}

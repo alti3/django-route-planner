@@ -1,0 +1,663 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Route Planner Map</title>
+    <link
+        rel="stylesheet"
+        href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"
+        integrity="sha256-p4NxAoJBhIIN+hmNHrzRCf9tD/miZyoHS5obTRR9BMY="
+        crossorigin=""
+    >
+    <style>
+        html, body {
+            margin: 0;
+            height: 100%;
+            font-family: Arial, sans-serif;
+        }
+
+        #map {
+            height: 100%;
+            width: 100%;
+        }
+
+        .floating-panel {
+            position: absolute;
+            top: 16px;
+            left: 16px;
+            z-index: 1000;
+            width: min(360px, calc(100% - 32px));
+            padding: 14px;
+            border-radius: 10px;
+            background: rgba(255, 255, 255, 0.95);
+            box-shadow: 0 8px 30px rgba(0, 0, 0, 0.2);
+        }
+
+        .floating-panel h1 {
+            margin: 0;
+            font-size: 18px;
+            line-height: 1.2;
+        }
+
+        .panel-header {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            gap: 10px;
+            margin-bottom: 12px;
+        }
+
+        .info-help {
+            position: relative;
+            display: inline-flex;
+            align-items: center;
+        }
+
+        .info-help-trigger {
+            width: 18px;
+            height: 18px;
+            border: 1px solid #64748b;
+            border-radius: 50%;
+            background: #fff;
+            color: #0f172a;
+            font-size: 11px;
+            font-weight: 700;
+            line-height: 1;
+            cursor: pointer;
+            padding: 0;
+        }
+
+        .info-help-trigger:focus-visible {
+            outline: 2px solid #0f6cbd;
+            outline-offset: 2px;
+        }
+
+        .info-help-popup {
+            position: absolute;
+            top: calc(100% + 8px);
+            right: 0;
+            width: min(280px, calc(100vw - 64px));
+            padding: 10px 12px;
+            border-radius: 8px;
+            background: #111827;
+            color: #fff;
+            font-size: 12px;
+            line-height: 1.45;
+            box-shadow: 0 10px 30px rgba(15, 23, 42, 0.35);
+            opacity: 0;
+            visibility: hidden;
+            transform: translateY(-4px);
+            transition: opacity 120ms ease, transform 120ms ease, visibility 120ms ease;
+        }
+
+        .info-help-inline .info-help-popup {
+            left: 0;
+            right: auto;
+            width: min(220px, calc(100vw - 64px));
+        }
+
+        .info-help:hover .info-help-popup,
+        .info-help:focus-within .info-help-popup,
+        .info-help.is-open .info-help-popup {
+            opacity: 1;
+            visibility: visible;
+            transform: translateY(0);
+        }
+
+        .field {
+            margin-bottom: 10px;
+        }
+
+        .field-label-row {
+            display: flex;
+            align-items: center;
+            gap: 6px;
+            margin-bottom: 4px;
+        }
+
+        .field label {
+            display: block;
+            margin: 0;
+            font-size: 13px;
+            font-weight: 600;
+        }
+
+        .field input {
+            box-sizing: border-box;
+            width: 100%;
+            padding: 8px 10px;
+            border: 1px solid #c9c9c9;
+            border-radius: 6px;
+            font-size: 14px;
+        }
+
+        .field select {
+            box-sizing: border-box;
+            width: 100%;
+            padding: 8px 10px;
+            border: 1px solid #c9c9c9;
+            border-radius: 6px;
+            font-size: 14px;
+            background: #fff;
+        }
+
+        .field-grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 10px;
+        }
+
+        button {
+            width: 100%;
+            padding: 10px 12px;
+            border: none;
+            border-radius: 6px;
+            background: #0f6cbd;
+            color: #fff;
+            font-size: 14px;
+            font-weight: 700;
+            cursor: pointer;
+        }
+
+        button:disabled {
+            opacity: 0.6;
+            cursor: not-allowed;
+        }
+
+        #status {
+            margin-top: 10px;
+            min-height: 18px;
+            font-size: 13px;
+        }
+    </style>
+</head>
+<body>
+    <div id="map"></div>
+
+    <div class="floating-panel">
+        <div class="panel-header">
+            <h1>Fuel Route Planner</h1>
+            <div class="info-help" id="planner-help">
+                <button
+                    id="planner-help-trigger"
+                    class="info-help-trigger"
+                    type="button"
+                    aria-label="Route planner help"
+                    aria-haspopup="dialog"
+                    aria-controls="planner-help-popup"
+                    aria-expanded="false"
+                >i</button>
+                <div id="planner-help-popup" class="info-help-popup" role="tooltip" aria-hidden="true">
+                    Enter start and finish locations, adjust vehicle and fuel settings, then click Plan Route to draw the route and suggested fuel stops.
+                </div>
+            </div>
+        </div>
+        <form id="route-form">
+            <div class="field">
+                <div class="field-label-row">
+                    <label for="start-location">Start location</label>
+                    <div class="info-help info-help-inline">
+                        <button
+                            id="start-location-help-trigger"
+                            class="info-help-trigger"
+                            type="button"
+                            aria-label="Start location help"
+                            aria-haspopup="dialog"
+                            aria-controls="start-location-help-popup"
+                            aria-expanded="false"
+                        >i</button>
+                        <div id="start-location-help-popup" class="info-help-popup" role="tooltip" aria-hidden="true">
+                            City and state where the route begins.
+                        </div>
+                    </div>
+                </div>
+                <input id="start-location" name="start_location" placeholder="Austin, TX" required>
+            </div>
+            <div class="field">
+                <div class="field-label-row">
+                    <label for="finish-location">Finish location</label>
+                    <div class="info-help info-help-inline">
+                        <button
+                            id="finish-location-help-trigger"
+                            class="info-help-trigger"
+                            type="button"
+                            aria-label="Finish location help"
+                            aria-haspopup="dialog"
+                            aria-controls="finish-location-help-popup"
+                            aria-expanded="false"
+                        >i</button>
+                        <div id="finish-location-help-popup" class="info-help-popup" role="tooltip" aria-hidden="true">
+                            City and state where the route ends.
+                        </div>
+                    </div>
+                </div>
+                <input id="finish-location" name="finish_location" placeholder="Chicago, IL" required>
+            </div>
+            <div class="field">
+                <div class="field-label-row">
+                    <label for="optimizer">Optimizer</label>
+                    <div class="info-help info-help-inline">
+                        <button
+                            id="optimizer-help-trigger"
+                            class="info-help-trigger"
+                            type="button"
+                            aria-label="Optimizer help"
+                            aria-haspopup="dialog"
+                            aria-controls="optimizer-help-popup"
+                            aria-expanded="false"
+                        >i</button>
+                        <div id="optimizer-help-popup" class="info-help-popup" role="tooltip" aria-hidden="true">
+                            Chooses which route optimization engine is used.
+                        </div>
+                    </div>
+                </div>
+                <select id="optimizer" name="optimizer">
+                    <option value="baseline" {% if defaults.optimizer == "baseline" %}selected{% endif %}>Baseline</option>
+                    <option value="ortools" {% if defaults.optimizer == "ortools" %}selected{% endif %}>OR-Tools</option>
+                </select>
+            </div>
+            <div class="field-grid">
+                <div class="field">
+                    <div class="field-label-row">
+                        <label for="start-fuel-percent">Start fuel %</label>
+                        <div class="info-help info-help-inline">
+                            <button
+                                id="start-fuel-percent-help-trigger"
+                                class="info-help-trigger"
+                                type="button"
+                                aria-label="Start fuel percent help"
+                                aria-haspopup="dialog"
+                                aria-controls="start-fuel-percent-help-popup"
+                                aria-expanded="false"
+                            >i</button>
+                            <div id="start-fuel-percent-help-popup" class="info-help-popup" role="tooltip" aria-hidden="true">
+                                Fuel level at departure as a percentage of full tank.
+                            </div>
+                        </div>
+                    </div>
+                    <input
+                        id="start-fuel-percent"
+                        name="start_fuel_percent"
+                        type="number"
+                        min="0"
+                        max="100"
+                        step="0.1"
+                        value="{{ defaults.start_fuel_percent }}"
+                        required
+                    >
+                </div>
+                <div class="field">
+                    <div class="field-label-row">
+                        <label for="corridor-miles">Corridor miles</label>
+                        <div class="info-help info-help-inline">
+                            <button
+                                id="corridor-miles-help-trigger"
+                                class="info-help-trigger"
+                                type="button"
+                                aria-label="Corridor miles help"
+                                aria-haspopup="dialog"
+                                aria-controls="corridor-miles-help-popup"
+                                aria-expanded="false"
+                            >i</button>
+                            <div id="corridor-miles-help-popup" class="info-help-popup" role="tooltip" aria-hidden="true">
+                                Search radius in miles around the main route for fuel stops.
+                            </div>
+                        </div>
+                    </div>
+                    <input
+                        id="corridor-miles"
+                        name="corridor_miles"
+                        type="number"
+                        min="1"
+                        max="50"
+                        step="0.1"
+                        value="{{ defaults.corridor_miles }}"
+                        required
+                    >
+                </div>
+            </div>
+            <div class="field-grid">
+                <div class="field">
+                    <div class="field-label-row">
+                        <label for="vehicle-mpg">Vehicle MPG</label>
+                        <div class="info-help info-help-inline">
+                            <button
+                                id="vehicle-mpg-help-trigger"
+                                class="info-help-trigger"
+                                type="button"
+                                aria-label="Vehicle MPG help"
+                                aria-haspopup="dialog"
+                                aria-controls="vehicle-mpg-help-popup"
+                                aria-expanded="false"
+                            >i</button>
+                            <div id="vehicle-mpg-help-popup" class="info-help-popup" role="tooltip" aria-hidden="true">
+                                Average miles per gallon used to estimate consumption.
+                            </div>
+                        </div>
+                    </div>
+                    <input
+                        id="vehicle-mpg"
+                        name="vehicle_mpg"
+                        type="number"
+                        min="0.1"
+                        step="0.1"
+                        value="{{ defaults.vehicle_mpg }}"
+                        required
+                    >
+                </div>
+                <div class="field">
+                    <div class="field-label-row">
+                        <label for="tank-capacity-gallons">Tank gallons</label>
+                        <div class="info-help info-help-inline">
+                            <button
+                                id="tank-capacity-gallons-help-trigger"
+                                class="info-help-trigger"
+                                type="button"
+                                aria-label="Tank gallons help"
+                                aria-haspopup="dialog"
+                                aria-controls="tank-capacity-gallons-help-popup"
+                                aria-expanded="false"
+                            >i</button>
+                            <div id="tank-capacity-gallons-help-popup" class="info-help-popup" role="tooltip" aria-hidden="true">
+                                Maximum amount of fuel the tank can hold.
+                            </div>
+                        </div>
+                    </div>
+                    <input
+                        id="tank-capacity-gallons"
+                        name="tank_capacity_gallons"
+                        type="number"
+                        min="0.1"
+                        step="0.1"
+                        value="{{ defaults.tank_capacity_gallons }}"
+                        required
+                    >
+                </div>
+            </div>
+            <div class="field">
+                <div class="field-label-row">
+                    <label for="max-range-miles">Max range miles</label>
+                    <div class="info-help info-help-inline">
+                        <button
+                            id="max-range-miles-help-trigger"
+                            class="info-help-trigger"
+                            type="button"
+                            aria-label="Max range miles help"
+                            aria-haspopup="dialog"
+                            aria-controls="max-range-miles-help-popup"
+                            aria-expanded="false"
+                        >i</button>
+                        <div id="max-range-miles-help-popup" class="info-help-popup" role="tooltip" aria-hidden="true">
+                            Calculated automatically as Vehicle MPG x Tank gallons.
+                        </div>
+                    </div>
+                </div>
+                <input
+                    id="max-range-miles"
+                    name="max_range_miles"
+                    type="number"
+                    min="1"
+                    step="0.1"
+                    value="{{ defaults.max_range_miles }}"
+                    readonly
+                    required
+                >
+            </div>
+            <button id="plan-button" type="submit">Plan Route</button>
+        </form>
+        <div id="status" role="status"></div>
+    </div>
+
+    <script
+        src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"
+        integrity="sha256-20nQCchB9co0qIjJZRGuk2/Z9VM+kNiyxNV1lvTlZBo="
+        crossorigin=""
+    ></script>
+    <script>
+        const map = L.map("map").setView([39.5, -98.35], 4);
+        L.tileLayer("https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png", {
+            maxZoom: 19,
+            attribution: "&copy; OpenStreetMap contributors"
+        }).addTo(map);
+
+        const form = document.getElementById("route-form");
+        const startInput = document.getElementById("start-location");
+        const finishInput = document.getElementById("finish-location");
+        const optimizerInput = document.getElementById("optimizer");
+        const startFuelPercentInput = document.getElementById("start-fuel-percent");
+        const corridorMilesInput = document.getElementById("corridor-miles");
+        const vehicleMpgInput = document.getElementById("vehicle-mpg");
+        const tankCapacityInput = document.getElementById("tank-capacity-gallons");
+        const maxRangeInput = document.getElementById("max-range-miles");
+        const planButton = document.getElementById("plan-button");
+        const status = document.getElementById("status");
+        const helpContainers = Array.from(document.querySelectorAll(".info-help"));
+
+        let routeLine = null;
+        let startMarker = null;
+        let finishMarker = null;
+        let stopMarkers = [];
+
+        function setStatus(message, isError) {
+            status.textContent = message;
+            status.style.color = isError ? "#b42318" : "#1f2937";
+        }
+
+        function resetRouteLayers() {
+            if (routeLine) {
+                map.removeLayer(routeLine);
+                routeLine = null;
+            }
+            if (startMarker) {
+                map.removeLayer(startMarker);
+                startMarker = null;
+            }
+            if (finishMarker) {
+                map.removeLayer(finishMarker);
+                finishMarker = null;
+            }
+            for (const marker of stopMarkers) {
+                map.removeLayer(marker);
+            }
+            stopMarkers = [];
+        }
+
+        function escapeHtml(text) {
+            return String(text)
+                .replaceAll("&", "&amp;")
+                .replaceAll("<", "&lt;")
+                .replaceAll(">", "&gt;")
+                .replaceAll('"', "&quot;")
+                .replaceAll("'", "&#39;");
+        }
+
+        function stopPopupHtml(stop, index) {
+            return (
+                "<div style='min-width:220px'>" +
+                "<strong>Stop " + (index + 1) + ": " + escapeHtml(stop.station_name) + "</strong><br>" +
+                escapeHtml(stop.address) + "<br>" +
+                escapeHtml(stop.city) + ", " + escapeHtml(stop.state) + "<br><br>" +
+                "<strong>Price:</strong> $" + stop.price_per_gallon + "/gal<br>" +
+                "<strong>Gallons:</strong> " + stop.gallons_purchased + "<br>" +
+                "<strong>Cost:</strong> $" + stop.cost + "<br>" +
+                "<strong>Milepost:</strong> " + stop.milepost + "<br>" +
+                "<strong>Offset:</strong> " + stop.distance_from_route_miles + " miles" +
+                "</div>"
+            );
+        }
+
+        function parsePositiveFloat(value) {
+            const number = Number.parseFloat(value);
+            return Number.isFinite(number) ? number : null;
+        }
+
+        function updateComputedMaxRange() {
+            const vehicleMpg = parsePositiveFloat(vehicleMpgInput.value);
+            const tankCapacityGallons = parsePositiveFloat(tankCapacityInput.value);
+            if (vehicleMpg === null || tankCapacityGallons === null) {
+                maxRangeInput.value = "";
+                return;
+            }
+            maxRangeInput.value = (vehicleMpg * tankCapacityGallons).toFixed(1);
+        }
+
+        function setHelpOpen(container, isOpen) {
+            const trigger = container.querySelector(".info-help-trigger");
+            const popup = container.querySelector(".info-help-popup");
+            if (!trigger || !popup) {
+                return;
+            }
+            container.classList.toggle("is-open", isOpen);
+            trigger.setAttribute("aria-expanded", isOpen ? "true" : "false");
+            popup.setAttribute("aria-hidden", isOpen ? "false" : "true");
+        }
+
+        function closeAllHelp(exceptContainer = null) {
+            for (const container of helpContainers) {
+                if (exceptContainer && container === exceptContainer) {
+                    continue;
+                }
+                setHelpOpen(container, false);
+            }
+        }
+
+        async function submitRoutePlan(event) {
+            event.preventDefault();
+
+            const startLocation = startInput.value.trim();
+            const finishLocation = finishInput.value.trim();
+            const startFuelPercent = parsePositiveFloat(startFuelPercentInput.value);
+            const corridorMiles = parsePositiveFloat(corridorMilesInput.value);
+            const vehicleMpg = parsePositiveFloat(vehicleMpgInput.value);
+            const tankCapacityGallons = parsePositiveFloat(tankCapacityInput.value);
+            const maxRangeMiles = parsePositiveFloat(maxRangeInput.value);
+            const optimizer = optimizerInput.value;
+
+            if (!startLocation || !finishLocation) {
+                setStatus("Both start and finish locations are required.", true);
+                return;
+            }
+            if (
+                startFuelPercent === null ||
+                corridorMiles === null ||
+                vehicleMpg === null ||
+                tankCapacityGallons === null ||
+                maxRangeMiles === null
+            ) {
+                setStatus("All numeric options must be valid numbers.", true);
+                return;
+            }
+
+            planButton.disabled = true;
+            setStatus("Planning route...", false);
+
+            try {
+                const response = await fetch("/api/v1/route-plan", {
+                    method: "POST",
+                    headers: {
+                        "Content-Type": "application/json"
+                    },
+                    body: JSON.stringify({
+                        start_location: startLocation,
+                        finish_location: finishLocation,
+                        optimizer: optimizer,
+                        start_fuel_percent: startFuelPercent,
+                        corridor_miles: corridorMiles,
+                        vehicle_mpg: vehicleMpg,
+                        tank_capacity_gallons: tankCapacityGallons,
+                        max_range_miles: maxRangeMiles
+                    })
+                });
+
+                const payload = await response.json();
+                if (!response.ok) {
+                    const message = payload.error && payload.error.message
+                        ? payload.error.message
+                        : "Route planning failed.";
+                    throw new Error(message);
+                }
+
+                const coordinates = payload.route_geojson && payload.route_geojson.coordinates
+                    ? payload.route_geojson.coordinates
+                    : null;
+                if (!Array.isArray(coordinates) || coordinates.length < 2) {
+                    throw new Error("Route response does not include valid polyline coordinates.");
+                }
+
+                const latLngs = coordinates.map((coord) => [coord[1], coord[0]]);
+
+                resetRouteLayers();
+
+                routeLine = L.polyline(latLngs, { color: "#1d4ed8", weight: 5 }).addTo(map);
+                const startPoint = payload.start;
+                const finishPoint = payload.finish;
+                startMarker = L.marker([startPoint.latitude, startPoint.longitude]).addTo(map);
+                finishMarker = L.marker([finishPoint.latitude, finishPoint.longitude]).addTo(map);
+
+                const stops = Array.isArray(payload.stops) ? payload.stops : [];
+                for (let index = 0; index < stops.length; index += 1) {
+                    const stop = stops[index];
+                    if (typeof stop.latitude !== "number" || typeof stop.longitude !== "number") {
+                        continue;
+                    }
+                    const marker = L.marker([stop.latitude, stop.longitude])
+                        .addTo(map)
+                        .bindPopup(stopPopupHtml(stop, index));
+                    stopMarkers.push(marker);
+                }
+
+                map.fitBounds(routeLine.getBounds(), { padding: [30, 30] });
+
+                const summary = payload.summary || {};
+                const distance = summary.distance_miles;
+                const cost = summary.total_fuel_cost;
+                setStatus(
+                    "Route ready. Stops: " + stops.length + ". Distance: " + distance + " miles. Estimated cost: $" + cost,
+                    false
+                );
+            } catch (error) {
+                resetRouteLayers();
+                setStatus(error.message || "Unexpected error while planning route.", true);
+            } finally {
+                planButton.disabled = false;
+            }
+        }
+
+        for (const container of helpContainers) {
+            const trigger = container.querySelector(".info-help-trigger");
+            if (!trigger) {
+                continue;
+            }
+
+            trigger.addEventListener("click", (event) => {
+                event.preventDefault();
+                const nextOpen = !container.classList.contains("is-open");
+                closeAllHelp(container);
+                setHelpOpen(container, nextOpen);
+            });
+
+            trigger.addEventListener("keydown", (event) => {
+                if (event.key === "Escape") {
+                    setHelpOpen(container, false);
+                }
+            });
+        }
+
+        document.addEventListener("click", (event) => {
+            for (const container of helpContainers) {
+                if (container.contains(event.target)) {
+                    return;
+                }
+            }
+            closeAllHelp();
+        });
+
+        vehicleMpgInput.addEventListener("input", updateComputedMaxRange);
+        tankCapacityInput.addEventListener("input", updateComputedMaxRange);
+        updateComputedMaxRange();
+
+        form.addEventListener("submit", submitRoutePlan);
+    </script>
+</body>
+</html>
