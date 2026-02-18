@@ -1,0 +1,46 @@
+services:
+  web:
+    build:
+      context: .
+      target: runtime
+    command: uv run gunicorn config.wsgi:application --bind 0.0.0.0:8000 --workers 2 --threads 2 --access-logfile -
+    env_file:
+      - .env
+    environment:
+      DJANGO_DEBUG: 0
+      SQLITE_DB_PATH: /app/data/db.sqlite3
+      RUN_MIGRATIONS: ${RUN_MIGRATIONS:-1}
+      COLLECT_STATIC: ${COLLECT_STATIC:-1}
+    volumes:
+      - sqlite_data:/app/data
+      - static_data:/app/staticfiles
+    expose:
+      - "8000"
+    healthcheck:
+      test:
+        [
+          "CMD-SHELL",
+          "uv run python -c \"import urllib.request; urllib.request.urlopen('http://127.0.0.1:8000/api/v1/health', timeout=5)\"",
+        ]
+      interval: 15s
+      timeout: 5s
+      retries: 5
+      start_period: 20s
+    restart: unless-stopped
+
+  nginx:
+    build:
+      context: .
+      dockerfile: docker/nginx/Dockerfile
+    ports:
+      - "80:80"
+    depends_on:
+      web:
+        condition: service_healthy
+    volumes:
+      - static_data:/app/staticfiles:ro
+    restart: unless-stopped
+
+volumes:
+  sqlite_data:
+  static_data:

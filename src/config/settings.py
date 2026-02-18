@@ -55,7 +55,7 @@ ASGI_APPLICATION = "config.asgi.application"
 DATABASES = {
     "default": {
         "ENGINE": "django.db.backends.sqlite3",
-        "NAME": PROJECT_ROOT / "db.sqlite3",
+        "NAME": Path(os.getenv("SQLITE_DB_PATH", PROJECT_ROOT / "db.sqlite3")),
     }
 }
 
@@ -80,6 +80,7 @@ USE_I18N = True
 USE_TZ = True
 
 STATIC_URL = "static/"
+STATIC_ROOT = Path(os.getenv("DJANGO_STATIC_ROOT", PROJECT_ROOT / "staticfiles"))
 DEFAULT_AUTO_FIELD = "django.db.models.BigAutoField"
 
 CACHES = {

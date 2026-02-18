@@ -49,6 +49,30 @@ uv run python src/manage.py runserver
 
 6. Open the web UI: `http://127.0.0.1:8000/` (map view)
 
+## Docker
+Container images install and run dependencies with `uv` (no `pip` usage).
+
+1. Create environment file:
+```bash
+cp .env.example .env
+```
+
+2. Start development stack:
+```bash
+docker compose up --build
+```
+
+3. Run one-off commands in the container:
+```bash
+docker compose exec web uv run python src/manage.py import_fuel_prices --csv-path fuel-prices-for-be-assessment.csv
+docker compose exec web uv run python src/manage.py geocode_fuel_stations --limit 100 --sleep-seconds 1.1
+```
+
+4. Production-style stack (Gunicorn + Nginx):
+```bash
+docker compose -f docker-compose.prod.yml up --build -d
+```
+
 ## API
 ### Health
 `GET /api/v1/health`

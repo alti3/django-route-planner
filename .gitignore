@@ -10,3 +10,7 @@ wheels/
 .venv
 .agents
 db.sqlite3
+.env
+.env.*
+.pytest_cache/
+.ruff_cache/
