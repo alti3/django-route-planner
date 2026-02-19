@@ -129,6 +129,10 @@ Interactive map page built with Leaflet + OpenStreetMap:
 - Draws returned route polyline on the map.
 - Renders clickable fuel-stop markers with per-stop popup details.
 
+## Screenshots
+![Route planner screenshot 1](screenshots/screenshot1.png)
+![Route planner screenshot 2](screenshots/screenshot2.png)
+
 ## Behavior and Assumptions
 - Default vehicle MPG: 10
 - Default max range: 500 miles
