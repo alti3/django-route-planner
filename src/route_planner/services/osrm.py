@@ -21,7 +21,13 @@ class OsrmClient:
         self.retry_count = settings.OSRM_RETRY_COUNT
 
     def route(self, start: GeoPoint, finish: GeoPoint) -> RouteData:
-        cache_key = self._cache_key(start, finish)
+        return self.route_through([start, finish])
+
+    def route_through(self, waypoints: list[GeoPoint]) -> RouteData:
+        if len(waypoints) < 2:
+            raise NoRouteFoundError("At least two route waypoints are required")
+
+        cache_key = self._cache_key(waypoints)
         cached = cache.get(cache_key)
         if cached:
             return RouteData(
@@ -30,11 +36,8 @@ class OsrmClient:
                 duration_seconds=cached["duration_seconds"],
             )
 
-        endpoint = (
-            f"{self.base_url}/route/v1/driving/"
-            f"{start.longitude:.6f},{start.latitude:.6f};"
-            f"{finish.longitude:.6f},{finish.latitude:.6f}"
-        )
+        coordinates = ";".join(f"{point.longitude:.6f},{point.latitude:.6f}" for point in waypoints)
+        endpoint = f"{self.base_url}/route/v1/driving/{coordinates}"
         params = {
             "overview": "full",
             "geometries": "geojson",
@@ -67,13 +70,11 @@ class OsrmClient:
         raise ExternalServiceError("OSRM request failed")
 
     @staticmethod
-    def _cache_key(start: GeoPoint, finish: GeoPoint) -> str:
-        digest = hashlib.sha256(
-            (
-                f"{start.latitude:.5f}:{start.longitude:.5f}|"
-                f"{finish.latitude:.5f}:{finish.longitude:.5f}"
-            ).encode()
-        ).hexdigest()
+    def _cache_key(waypoints: list[GeoPoint]) -> str:
+        encoded = "|".join(
+            f"{point.latitude:.5f}:{point.longitude:.5f}" for point in waypoints
+        ).encode()
+        digest = hashlib.sha256(encoded).hexdigest()
         return f"route:{digest}"
 
     @staticmethod

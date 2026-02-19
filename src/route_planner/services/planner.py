@@ -2,6 +2,7 @@ from __future__ import annotations
 
 from django.conf import settings
 
+from route_planner.exceptions import ExternalServiceError, NoRouteFoundError
 from route_planner.schemas import (
     Coordinate,
     FuelStopResponse,
@@ -13,6 +14,7 @@ from route_planner.services.geocoding import GeocodingClient
 from route_planner.services.optimization import optimize_fuel_plan
 from route_planner.services.osrm import OsrmClient
 from route_planner.services.station_selection import StationSelector
+from route_planner.services.types import GeoPoint
 
 
 class RoutePlannerService:
@@ -34,17 +36,17 @@ class RoutePlannerService:
         start_geocode = self.geocoding_client.geocode(request.start_location, country_code="us")
         finish_geocode = self.geocoding_client.geocode(request.finish_location, country_code="us")
 
-        route = self.osrm_client.route(start_geocode.point, finish_geocode.point)
+        direct_route = self.osrm_client.route(start_geocode.point, finish_geocode.point)
 
         candidates = self.station_selector.select_candidate_stations(
-            route_coordinates=route.coordinates,
+            route_coordinates=direct_route.coordinates,
             corridor_miles=request.corridor_miles,
         )
 
         start_fuel_gallons = tank_capacity_gallons * (request.start_fuel_percent / 100.0)
         optimization = optimize_fuel_plan(
             candidates=candidates,
-            route_distance_miles=route.distance_miles,
+            route_distance_miles=direct_route.distance_miles,
             start_fuel_gallons=start_fuel_gallons,
             mpg=vehicle_mpg,
             tank_capacity_gallons=tank_capacity_gallons,
@@ -72,12 +74,29 @@ class RoutePlannerService:
             for stop in optimization.stops
         ]
 
+        route_with_stops_geojson: dict | None = None
+        if stops:
+            route_waypoints = [start_geocode.point]
+            route_waypoints.extend(
+                GeoPoint(latitude=stop.latitude, longitude=stop.longitude) for stop in stops
+            )
+            route_waypoints.append(finish_geocode.point)
+
+            try:
+                route_with_stops = self.osrm_client.route_through(route_waypoints)
+                route_with_stops_geojson = {
+                    "type": "LineString",
+                    "coordinates": route_with_stops.coordinates,
+                }
+            except (NoRouteFoundError, ExternalServiceError):
+                route_with_stops_geojson = None
+
         summary = RouteSummaryResponse(
-            distance_miles=round(route.distance_miles, 3),
-            duration_minutes=round(route.duration_seconds / 60.0, 2),
+            distance_miles=round(direct_route.distance_miles, 3),
+            duration_minutes=round(direct_route.duration_seconds / 60.0, 2),
             total_gallons_purchased=round(optimization.total_gallons_purchased, 3),
             total_fuel_cost=round(optimization.total_fuel_cost, 2),
-            estimated_fuel_needed_gallons=round(route.distance_miles / vehicle_mpg, 3),
+            estimated_fuel_needed_gallons=round(direct_route.distance_miles / vehicle_mpg, 3),
         )
 
         return RoutePlanResponse(
@@ -92,8 +111,9 @@ class RoutePlannerService:
             optimizer_used=optimization.optimizer_used,
             route_geojson={
                 "type": "LineString",
-                "coordinates": route.coordinates,
+                "coordinates": direct_route.coordinates,
             },
+            route_with_stops_geojson=route_with_stops_geojson,
             stops=stops,
             summary=summary,
             assumptions={

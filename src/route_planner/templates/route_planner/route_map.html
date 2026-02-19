@@ -170,6 +170,62 @@
             min-height: 18px;
             font-size: 13px;
         }
+
+        .route-legend {
+            position: absolute;
+            right: 16px;
+            bottom: 16px;
+            z-index: 1000;
+            min-width: 190px;
+            padding: 10px 12px;
+            border-radius: 10px;
+            background: rgba(255, 255, 255, 0.95);
+            box-shadow: 0 8px 24px rgba(0, 0, 0, 0.2);
+            font-size: 12px;
+            color: #0f172a;
+        }
+
+        .route-legend.is-hidden {
+            display: none;
+        }
+
+        .is-hidden {
+            display: none;
+        }
+
+        .route-legend-title {
+            margin: 0 0 8px;
+            font-size: 12px;
+            font-weight: 700;
+        }
+
+        .route-legend-item {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .route-legend-item + .route-legend-item {
+            margin-top: 6px;
+        }
+
+        .route-legend-swatch {
+            width: 30px;
+            height: 0;
+            border-top-width: 4px;
+            border-top-style: solid;
+            border-radius: 2px;
+            flex: 0 0 auto;
+        }
+
+        .route-legend-swatch.primary {
+            border-top-color: #dc2626;
+        }
+
+        .route-legend-swatch.direct {
+            border-top-color: rgba(29, 78, 216, 0.45);
+            border-top-style: dashed;
+        }
     </style>
 </head>
 <body>
@@ -409,6 +465,18 @@
         <div id="status" role="status"></div>
     </div>
 
+    <div id="route-legend" class="route-legend is-hidden" aria-live="polite">
+        <p class="route-legend-title">Map legend</p>
+        <div class="route-legend-item">
+            <span class="route-legend-swatch primary"></span>
+            <span id="primary-route-legend-label">Route</span>
+        </div>
+        <div id="direct-route-legend-item" class="route-legend-item is-hidden">
+            <span class="route-legend-swatch direct"></span>
+            <span>Direct route</span>
+        </div>
+    </div>
+
     <script
         src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"
         integrity="sha256-20nQCchB9co0qIjJZRGuk2/Z9VM+kNiyxNV1lvTlZBo="
@@ -433,8 +501,12 @@
         const planButton = document.getElementById("plan-button");
         const status = document.getElementById("status");
         const helpContainers = Array.from(document.querySelectorAll(".info-help"));
+        const routeLegend = document.getElementById("route-legend");
+        const primaryRouteLegendLabel = document.getElementById("primary-route-legend-label");
+        const directRouteLegendItem = document.getElementById("direct-route-legend-item");
 
         let routeLine = null;
+        let directRouteLine = null;
         let startMarker = null;
         let finishMarker = null;
         let stopMarkers = [];
@@ -449,6 +521,10 @@
                 map.removeLayer(routeLine);
                 routeLine = null;
             }
+            if (directRouteLine) {
+                map.removeLayer(directRouteLine);
+                directRouteLine = null;
+            }
             if (startMarker) {
                 map.removeLayer(startMarker);
                 startMarker = null;
@@ -461,6 +537,31 @@
                 map.removeLayer(marker);
             }
             stopMarkers = [];
+            hideLegend();
+        }
+
+        function parseRouteLatLngs(routeGeojson) {
+            const coordinates = routeGeojson && routeGeojson.coordinates ? routeGeojson.coordinates : null;
+            if (!Array.isArray(coordinates) || coordinates.length < 2) {
+                return null;
+            }
+            return coordinates.map((coord) => [coord[1], coord[0]]);
+        }
+
+        function hideLegend() {
+            routeLegend.classList.add("is-hidden");
+        }
+
+        function setLegendState(hasStopRoute) {
+            routeLegend.classList.remove("is-hidden");
+            if (hasStopRoute) {
+                primaryRouteLegendLabel.textContent = "Route via fuel stops";
+                directRouteLegendItem.classList.remove("is-hidden");
+                return;
+            }
+
+            primaryRouteLegendLabel.textContent = "Direct route";
+            directRouteLegendItem.classList.add("is-hidden");
         }
 
         function escapeHtml(text) {
@@ -578,24 +679,43 @@
                     throw new Error(message);
                 }
 
-                const coordinates = payload.route_geojson && payload.route_geojson.coordinates
-                    ? payload.route_geojson.coordinates
-                    : null;
-                if (!Array.isArray(coordinates) || coordinates.length < 2) {
+                const directRouteLatLngs = parseRouteLatLngs(payload.route_geojson);
+                if (!directRouteLatLngs) {
                     throw new Error("Route response does not include valid polyline coordinates.");
                 }
 
-                const latLngs = coordinates.map((coord) => [coord[1], coord[0]]);
+                const stopRouteLatLngs = parseRouteLatLngs(payload.route_with_stops_geojson);
+                const stops = Array.isArray(payload.stops) ? payload.stops : [];
+                const hasStopRoute = stops.length > 0 && Array.isArray(stopRouteLatLngs);
 
                 resetRouteLayers();
 
-                routeLine = L.polyline(latLngs, { color: "#1d4ed8", weight: 5 }).addTo(map);
+                if (hasStopRoute) {
+                    routeLine = L.polyline(stopRouteLatLngs, {
+                        color: "#dc2626",
+                        weight: 5,
+                        opacity: 0.95
+                    }).addTo(map);
+                    directRouteLine = L.polyline(directRouteLatLngs, {
+                        color: "#1d4ed8",
+                        weight: 4,
+                        opacity: 0.45,
+                        dashArray: "8 8"
+                    }).addTo(map);
+                } else {
+                    routeLine = L.polyline(directRouteLatLngs, {
+                        color: "#1d4ed8",
+                        weight: 5,
+                        opacity: 0.95
+                    }).addTo(map);
+                }
+                setLegendState(hasStopRoute);
+
                 const startPoint = payload.start;
                 const finishPoint = payload.finish;
                 startMarker = L.marker([startPoint.latitude, startPoint.longitude]).addTo(map);
                 finishMarker = L.marker([finishPoint.latitude, finishPoint.longitude]).addTo(map);
 
-                const stops = Array.isArray(payload.stops) ? payload.stops : [];
                 for (let index = 0; index < stops.length; index += 1) {
                     const stop = stops[index];
                     if (typeof stop.latitude !== "number" || typeof stop.longitude !== "number") {

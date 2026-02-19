@@ -53,6 +53,7 @@ class RoutePlanResponse(BaseModel):
     finish: Coordinate
     optimizer_used: Literal["baseline", "ortools"]
     route_geojson: dict
+    route_with_stops_geojson: dict | None = None
     stops: list[FuelStopResponse]
     summary: RouteSummaryResponse
     assumptions: dict[str, float]

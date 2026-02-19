@@ -5,7 +5,7 @@ Backend + web UI that:
 - Builds a route using OSRM free demo API.
 - Selects optimal fuel stops along the route based on price data.
 - Supports baseline optimization and optional OR-Tools optimization.
-- Returns route geometry, fuel stops, and total fuel spend.
+- Returns both direct and fuel-stop-inclusive route geometry, fuel stops, and total fuel spend.
 - Provides an interactive Leaflet/OpenStreetMap page for route planning and visualization.
 
 ## Stack
@@ -114,7 +114,8 @@ Request body:
 - If optional vehicle fields are omitted, values come from Django settings defaults.
 
 Response includes:
-- `route_geojson` (`LineString`)
+- `route_geojson` (`LineString`) for the direct route from start to finish
+- `route_with_stops_geojson` (`LineString`, nullable) for the route constrained through selected fuel stops
 - `stops` with station details, milepost, gallons, and per-stop cost
 - `summary.total_fuel_cost`
 - assumptions (`mpg`, `range`, `tank`)
@@ -126,7 +127,9 @@ Interactive map page built with Leaflet + OpenStreetMap:
 - Floating panel with start and finish location inputs.
 - Planner options include optimizer, start fuel percent, corridor miles, vehicle MPG, tank capacity gallons, and max range miles.
 - Submits to `POST /api/v1/route-plan`.
-- Draws returned route polyline on the map.
+- Draws route-via-stops as the primary polyline when one or more stops are selected.
+- Also draws the direct route in a faded/dashed style for comparison.
+- Shows a map legend explaining the rendered route styles.
 - Renders clickable fuel-stop markers with per-stop popup details.
 
 ## Screenshots
@@ -141,6 +144,7 @@ Interactive map page built with Leaflet + OpenStreetMap:
 - Route computed with OSRM public demo endpoint.
 - Start/finish geocoding constrained to USA.
 - Station candidates are selected within a configurable corridor around the route.
+- If no fuel stops are selected (or stop-inclusive geometry cannot be generated), the map renders only the direct route.
 
 ## Commands
 Lint:

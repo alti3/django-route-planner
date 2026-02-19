@@ -25,6 +25,8 @@ def test_route_map_view_renders(api_client) -> None:
     assert 'tankCapacityInput.addEventListener("input", updateComputedMaxRange);' in body
     assert 'id="planner-help-trigger"' in body
     assert 'id="start-location-help-trigger"' in body
+    assert 'id="route-legend"' in body
+    assert 'id="direct-route-legend-item"' in body
 
 
 @pytest.mark.django_db
@@ -82,6 +84,10 @@ def test_route_plan_success_uses_planner_response(api_client, mocker) -> None:
         route_geojson={
             "type": "LineString",
             "coordinates": [[-97.7431, 30.2672], [-95.3698, 29.7604]],
+        },
+        route_with_stops_geojson={
+            "type": "LineString",
+            "coordinates": [[-97.7431, 30.2672], [-96.9, 30.1], [-95.3698, 29.7604]],
         },
         stops=[],
         summary=RouteSummaryResponse(
